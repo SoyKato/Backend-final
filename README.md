@@ -22,6 +22,10 @@
 
 ---
 
+## LINK DE LA PAGINA EN PYTHONANYWHERE
+## **https://kato.pythonanywhere.com/**
+
+
 ## Objetivo
 
 Crear una aplicación web que permita visualizar desde ubicación real los Oxxos cercanos en un radio específico, facilitando a turistas y residentes la localización rápida de tiendas de conveniencia cercanas para satisfacer necesidades inmediatas de forma segura.
