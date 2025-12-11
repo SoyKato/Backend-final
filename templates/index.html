@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visualizador de Oxxos Cercanos</title>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        #header {
+            background: linear-gradient(135deg, #ED1C24 0%, #C4161C 100%);
+            color: white;
+            padding: 15px 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        #header h1 {
+            font-size: 24px;
+            font-weight: 600;
+        }
+        
+        #header p {
+            font-size: 14px;
+            opacity: 0.9;
+            margin-top: 5px;
+        }
+        
+        #container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+        
+        #map {
+            flex: 1;
+            height: 100%;
+        }
+        
+        #sidebar {
+            width: 350px;
+            background: white;
+            border-left: 1px solid #ddd;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        #controls {
+            padding: 20px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        #controls h3 {
+            margin-bottom: 15px;
+            color: #333;
+            font-size: 16px;
+        }
+        
+        .control-group {
+            margin-bottom: 15px;
+        }
+        
+        .control-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #666;
+            font-size: 13px;
+            font-weight: 500;
+        }
+        
+        .control-group input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        
+        .btn {
+            width: 100%;
+            padding: 12px;
+            background: #ED1C24;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        
+        .btn:hover {
+            background: #C4161C;
+        }
+        
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .btn-secondary {
+            background: #666;
+            margin-top: 10px;
+        }
+        
+        .btn-secondary:hover {
+            background: #555;
+        }
+        
+        #results {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+        }
+        
+        #results h3 {
+            margin-bottom: 15px;
+            color: #333;
+            font-size: 16px;
+        }
+        
+        #stats {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+        }
+        
+        #stats p {
+            color: #666;
+            font-size: 14px;
+            margin: 5px 0;
+        }
+        
+        .oxxo-item {
+            background: white;
+            border: 1px solid #eee;
+            border-radius: 5px;
+            padding: 12px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .oxxo-item:hover {
+            border-color: #ED1C24;
+            box-shadow: 0 2px 8px rgba(237, 28, 36, 0.1);
+        }
+        
+        .oxxo-item.selected {
+            background: #fff5f5;
+            border-color: #ED1C24;
+        }
+        
+        .oxxo-name {
+            font-weight: 600;
+            color: #333;
+            font-size: 14px;
+            margin-bottom: 5px;
+        }
+        
+        .oxxo-distance {
+            color: #ED1C24;
+            font-size: 13px;
+            font-weight: 600;
+        }
+        
+        .oxxo-coords {
+            color: #999;
+            font-size: 12px;
+            margin-top: 5px;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #999;
+        }
+        
+        .error {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            color: #856404;
+            padding: 12px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            font-size: 13px;
+        }
+        
+        .info-message {
+            background: #e7f3ff;
+            border: 1px solid #2196F3;
+            color: #0d5a9e;
+            padding: 12px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            font-size: 13px;
+        }
+        
+        /* Estilos para el popup del mapa */
+        .leaflet-popup-content {
+            margin: 10px;
+        }
+        
+        .popup-title {
+            font-weight: 600;
+            color: #ED1C24;
+            margin-bottom: 5px;
+        }
+        
+        .popup-distance {
+            color: #666;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div id="header">
+        <h1>🏪 Visualizador de Oxxos Cercanos</h1>
+        <p>Encuentra tiendas Oxxo en un radio de 60 metros</p>
+    </div>
+    
+    <div id="container">
+        <div id="map"></div>
+        
+        <div id="sidebar">
+            <div id="controls">
+                <h3>📍 Tu Ubicación</h3>
+                
+                <div class="control-group">
+                    <label for="latitude">Latitud:</label>
+                    <input type="number" id="latitude" step="0.000001" placeholder="Ej: 32.5149">
+                </div>
+                
+                <div class="control-group">
+                    <label for="longitude">Longitud:</label>
+                    <input type="number" id="longitude" step="0.000001" placeholder="Ej: -117.0382">
+                </div>
+                
+                <div class="control-group">
+                    <label for="radius">Radio (metros):</label>
+                    <input type="number" id="radius" value="60" min="10" max="5000" step="10">
+                </div>
+                
+                <button class="btn" onclick="buscarUbicacionActual()">📍 Usar Mi Ubicación GPS</button>
+                <button class="btn btn-secondary" onclick="buscarOxxosCercanos()">🔍 Buscar Oxxos</button>
+            </div>
+            
+            <div id="results">
+                <div class="info-message">
+                    👆 Ingresa tu ubicación o usa el GPS para buscar Oxxos cercanos en un radio de 60 metros.
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <script>
+        // Inicializar el mapa (Tijuana, Baja California como centro inicial)
+        let map = L.map('map').setView([32.5149, -117.0382], 13);
+        
+        // Agregar capa de OpenStreetMap
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors',
+            maxZoom: 19
+        }).addTo(map);
+        
+        // Variables globales
+        let marcadorUsuario = null;
+        let circuloRadio = null;
+        let marcadoresOxxos = [];
+        let ubicacionUsuario = null;
+        
+        // Función para buscar la ubicación actual del usuario
+        function buscarUbicacionActual() {
+            if (navigator.geolocation) {
+                const btn = event.target;
+                btn.disabled = true;
+                btn.textContent = '📍 Obteniendo ubicación...';
+                
+                navigator.geolocation.getCurrentPosition(
+                    function(position) {
+                        const lat = position.coords.latitude;
+                        const lon = position.coords.longitude;
+                        
+                        document.getElementById('latitude').value = lat.toFixed(6);
+                        document.getElementById('longitude').value = lon.toFixed(6);
+                        
+                        ubicacionUsuario = [lat, lon];
+                        mostrarUbicacionUsuario(lat, lon);
+                        
+                        btn.disabled = false;
+                        btn.textContent = '📍 Usar Mi Ubicación GPS';
+                        
+                        // Buscar automáticamente
+                        buscarOxxosCercanos();
+                    },
+                    function(error) {
+                        alert('Error al obtener ubicación: ' + error.message);
+                        btn.disabled = false;
+                        btn.textContent = '📍 Usar Mi Ubicación GPS';
+                    }
+                );
+            } else {
+                alert('Tu navegador no soporta geolocalización');
+            }
+        }
+        
+        // Función para mostrar la ubicación del usuario en el mapa
+        function mostrarUbicacionUsuario(lat, lon) {
+            // Eliminar marcador anterior
+            if (marcadorUsuario) {
+                map.removeLayer(marcadorUsuario);
+            }
+            if (circuloRadio) {
+                map.removeLayer(circuloRadio);
+            }
+            
+            // Crear nuevo marcador
+            marcadorUsuario = L.marker([lat, lon], {
+                icon: L.divIcon({
+                    className: 'user-location-marker',
+                    html: '<div style="background: #2196F3; width: 20px; height: 20px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.3);"></div>',
+                    iconSize: [20, 20]
+                })
+            }).addTo(map);
+            
+            marcadorUsuario.bindPopup('<b>Tu ubicación</b>').openPopup();
+            
+            // Crear círculo de radio
+            const radio = parseFloat(document.getElementById('radius').value);
+            circuloRadio = L.circle([lat, lon], {
+                color: '#2196F3',
+                fillColor: '#2196F3',
+                fillOpacity: 0.1,
+                radius: radio
+            }).addTo(map);
+            
+            // Centrar mapa
+            map.setView([lat, lon], 17);
+        }
+        
+        // Función para buscar Oxxos cercanos
+        async function buscarOxxosCercanos() {
+            const lat = parseFloat(document.getElementById('latitude').value);
+            const lon = parseFloat(document.getElementById('longitude').value);
+            const radio = parseFloat(document.getElementById('radius').value);
+            
+            if (isNaN(lat) || isNaN(lon)) {
+                alert('Por favor ingresa coordenadas válidas');
+                return;
+            }
+            
+            // Mostrar ubicación del usuario
+            ubicacionUsuario = [lat, lon];
+            mostrarUbicacionUsuario(lat, lon);
+            
+            // Mostrar loading
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<div class="loading">🔍 Buscando Oxxos cercanos...</div>';
+            
+            try {
+                const response = await fetch(`/api/oxxos-cercanos?lat=${lat}&lon=${lon}&radio=${radio}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    mostrarResultados(data.oxxos, radio);
+                    mostrarOxxosEnMapa(data.oxxos);
+                } else {
+                    resultsDiv.innerHTML = `<div class="error">Error: ${data.error}</div>`;
+                }
+            } catch (error) {
+                resultsDiv.innerHTML = `<div class="error">Error al buscar Oxxos: ${error.message}</div>`;
+            }
+        }
+        
+        // Función para mostrar resultados en el sidebar
+        function mostrarResultados(oxxos, radio) {
+            const resultsDiv = document.getElementById('results');
+            
+            if (oxxos.length === 0) {
+                resultsDiv.innerHTML = `
+                    <div class="info-message">
+                        No se encontraron Oxxos en un radio de ${radio} metros. 
+                        Intenta aumentar el radio de búsqueda.
+                    </div>
+                `;
+                return;
+            }
+            
+            let html = `
+                <h3>🎯 Resultados</h3>
+                <div id="stats">
+                    <p><strong>${oxxos.length}</strong> Oxxo${oxxos.length > 1 ? 's' : ''} encontrado${oxxos.length > 1 ? 's' : ''}</p>
+                    <p>Radio de búsqueda: <strong>${radio}m</strong></p>
+                    <p>Más cercano: <strong>${oxxos[0].distancia}m</strong></p>
+                </div>
+            `;
+            
+            oxxos.forEach((oxxo, index) => {
+                html += `
+                    <div class="oxxo-item" onclick="seleccionarOxxo(${oxxo.latitud}, ${oxxo.longitud}, ${index})">
+                        <div class="oxxo-name">${oxxo.nombre}</div>
+                        <div class="oxxo-distance">📍 ${oxxo.distancia} metros</div>
+                        <div class="oxxo-coords">Lat: ${oxxo.latitud.toFixed(6)}, Lon: ${oxxo.longitud.toFixed(6)}</div>
+                    </div>
+                `;
+            });
+            
+            resultsDiv.innerHTML = html;
+        }
+        
+        // Función para mostrar Oxxos en el mapa
+        function mostrarOxxosEnMapa(oxxos) {
+            // Eliminar marcadores anteriores
+            marcadoresOxxos.forEach(marker => map.removeLayer(marker));
+            marcadoresOxxos = [];
+            
+            // Agregar nuevos marcadores
+            oxxos.forEach((oxxo, index) => {
+                const marker = L.marker([oxxo.latitud, oxxo.longitud], {
+                    icon: L.divIcon({
+                        className: 'oxxo-marker',
+                        html: `<div style="background: #ED1C24; color: white; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 2px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.3); font-weight: bold; font-size: 12px;">${index + 1}</div>`,
+                        iconSize: [30, 30]
+                    })
+                }).addTo(map);
+                
+                marker.bindPopup(`
+                    <div class="popup-title">${oxxo.nombre}</div>
+                    <div class="popup-distance">📍 ${oxxo.distancia}m de distancia</div>
+                `);
+                
+                marcadoresOxxos.push(marker);
+            });
+        }
+        
+        // Función para seleccionar un Oxxo
+        function seleccionarOxxo(lat, lon, index) {
+            // Remover clase selected de todos
+            document.querySelectorAll('.oxxo-item').forEach(item => {
+                item.classList.remove('selected');
+            });
+            
+            // Agregar clase al seleccionado
+            event.currentTarget.classList.add('selected');
+            
+            // Centrar mapa y abrir popup
+            map.setView([lat, lon], 18);
+            if (marcadoresOxxos[index]) {
+                marcadoresOxxos[index].openPopup();
+            }
+        }
+        
+        // Cargar todos los Oxxos al inicio (opcional, para visualización)
+        async function cargarTodosOxxos() {
+            try {
+                const response = await fetch('/api/todos-oxxos');
+                const data = await response.json();
+                
+                if (data.success) {
+                    console.log(`${data.total} Oxxos cargados en la base de datos`);
+                }
+            } catch (error) {
+                console.error('Error al cargar Oxxos:', error);
+            }
+        }
+        
+        // Inicializar
+        cargarTodosOxxos();
+    </script>
+</body>
+</html>
